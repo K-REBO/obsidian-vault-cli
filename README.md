@@ -19,6 +19,37 @@ Obsidian LiveSync encrypts everything in CouchDB. There's no way to read or writ
 - CI/CD pipelines that publish content to your vault
 - Any headless environment where you can't run Obsidian
 
+## Nix / NixOS
+
+A Nix flake is provided. No `install.sh` or `~/.local/bin` needed — the binary lands in the Nix store and is available in your PATH.
+
+```bash
+# Run without installing
+nix run github:K-REBO/obsidian-vault-cli -- list
+
+# Install into your Nix profile
+nix profile install github:K-REBO/obsidian-vault-cli
+
+# Or pin it in a flake
+inputs.obsidian-vault-cli.url = "github:K-REBO/obsidian-vault-cli";
+```
+
+The flake builds a self-contained binary (`bun build --compile`) for x86_64-linux and aarch64-linux. Bun and Node.js are not required at runtime.
+
+**Configuration:** The binary reads credentials from environment variables or a `.env` file in the working directory.
+
+```bash
+# Via env vars (recommended for Nix/NixOS)
+COUCHDB_USER=admin COUCHDB_PASSWORD=... E2EE_PASSPHRASE=... obsidian-vault list
+
+# Via .env in the current directory
+echo 'COUCHDB_USER=admin' > ~/.config/obsidian-vault.env
+set -a; source ~/.config/obsidian-vault.env; set +a
+obsidian-vault list
+```
+
+> For NixOS, declare the env vars in your `environment.sessionVariables` or use a `systemd` user service.
+
 ## Quick start
 
 ### Prerequisites
