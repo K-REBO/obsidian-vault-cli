@@ -13,8 +13,17 @@
     "rootDir": "./src",
     "baseUrl": ".",
     "paths": {
+      "@lib/worker/bgWorker.ts": ["./livesync-commonlib/src/worker/bgWorker.mock.ts"],
+      "@lib/worker/bgWorker": ["./livesync-commonlib/src/worker/bgWorker.mock.ts"],
+      "@lib/pouchdb/pouchdb-browser.ts": ["./livesync-commonlib/src/pouchdb/pouchdb-http.ts"],
+      "@lib/pouchdb/pouchdb-browser": ["./livesync-commonlib/src/pouchdb/pouchdb-http.ts"],
       "@lib/*": ["./livesync-commonlib/src/*"],
-      "@lib/worker/bgWorker.ts": ["./livesync-commonlib/src/worker/bgWorker.mock.ts"]
+      "@/lib/src/UI/DialogHost.svelte": ["./stubs/svelte-stub.ts"],
+      "@/lib/src/*": ["./livesync-commonlib/src/*"],
+      "@/common/*": ["./stubs/common/*"],
+      "@/deps": ["./stubs/deps.ts"],
+      "@/deps.ts": ["./stubs/deps.ts"],
+      "@/main": ["./stubs/main.ts"]
     }
   },
   "include": [

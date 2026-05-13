@@ -237,8 +237,6 @@ export interface VaultEntry {
 }
 
 export async function listFiles(dfm: DirectFileManipulator): Promise<VaultEntry[]> {
-    const files: VaultEntry[] = [];
-
     // These ranges cover all non-chunk doc types (skipping h: chunks)
     const ranges = [
         ["", "h:"],
@@ -248,10 +246,11 @@ export async function listFiles(dfm: DirectFileManipulator): Promise<VaultEntry[
         [`ps:\u{10ffff}`, "\u{10ffff}"],
     ] as const;
 
-    for (const [start, end] of ranges) {
+    async function collectRange(start: string, end: string): Promise<VaultEntry[]> {
+        const entries: VaultEntry[] = [];
         for await (const entry of dfm.liveSyncLocalDB.findEntries(start, end, {})) {
             if (entry && "path" in entry) {
-                files.push({
+                entries.push({
                     path: (entry as any).path as string,
                     id: (entry as any)._id as string,
                     mtime: (entry as any).mtime,
@@ -260,7 +259,9 @@ export async function listFiles(dfm: DirectFileManipulator): Promise<VaultEntry[
                 });
             }
         }
+        return entries;
     }
 
-    return files;
+    const results = await Promise.all(ranges.map(([start, end]) => collectRange(start, end)));
+    return results.flat();
 }

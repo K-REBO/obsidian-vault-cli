@@ -4,6 +4,11 @@ A headless CLI for reading and writing to an encrypted [Obsidian LiveSync](https
 
 Your Obsidian vault stays end-to-end encrypted (AES-256-GCM). This CLI handles all encryption, chunking, and CouchDB protocol details transparently — files appear in Obsidian within seconds via LiveSync's real-time change feed.
 
+> **Fork note:** This is a fork of [fanselau/obsidian-vault-cli](https://github.com/fanselau/obsidian-vault-cli) with the following improvements:
+> - **Bun runtime** — replaces Node.js + tsx; native TypeScript, ~80% faster startup
+> - **Parallel CouchDB enumeration** — `list` and related commands fetch document ranges concurrently
+> - **`sync` command** — rsync-style incremental sync (skip unchanged files, parallel download, `--delete` support)
+
 ## Why
 
 Obsidian LiveSync encrypts everything in CouchDB. There's no way to read or write vault files without re-implementing the full encryption and chunking protocol. This project does exactly that — running headless against the same [livesync-commonlib](https://github.com/vrtmrz/livesync-commonlib) that powers the Obsidian plugin.
@@ -18,14 +23,16 @@ Obsidian LiveSync encrypts everything in CouchDB. There's no way to read or writ
 
 ### Prerequisites
 
-- **Node.js** >= 20
+- **Bun** >= 1.0 — [bun.sh](https://bun.sh)
 - **Docker** (for CouchDB)
 - An existing **Obsidian LiveSync** vault (the plugin must have synced at least once to populate CouchDB settings)
+
+> Node.js is no longer required. Bun runs the TypeScript source directly with no build step.
 
 ### 1. Clone
 
 ```bash
-git clone --recursive https://github.com/lucafanselau/obsidian-vault-cli.git
+git clone --recursive https://github.com/K-REBO/obsidian-vault-cli.git
 cd obsidian-vault-cli
 ```
 
@@ -34,7 +41,7 @@ cd obsidian-vault-cli
 ### 2. Install dependencies
 
 ```bash
-npm install
+bun install
 ```
 
 ### 3. Configure
@@ -50,10 +57,12 @@ COUCHDB_USER=your_admin_user
 COUCHDB_PASSWORD=your_secure_password
 E2EE_PASSPHRASE=your_e2ee_passphrase
 DB_NAME=obsidiannotes
-# COUCHDB_URL=http://127.0.0.1:5984
+COUCHDB_URL=http://127.0.0.1:5984
 ```
 
 > The `E2EE_PASSPHRASE` is the end-to-end encryption passphrase you set in the LiveSync plugin. It is **never** stored in CouchDB — you must always provide it externally.
+
+> Uncomment and set `COUCHDB_URL` if your CouchDB is not on localhost.
 
 ### 4. Start CouchDB (if not already running)
 
@@ -161,9 +170,36 @@ obsidian-vault delete "Notes/old.md" --yes    # --yes skips confirmation
 
 ### `dump` — Export entire vault
 
+Exports all files to a local directory. Always overwrites existing files.
+
 ```bash
 obsidian-vault dump ./vault-export
+obsidian-vault dump ./vault-export --skip-errors
 ```
+
+### `sync` — Incremental sync (rsync-style)
+
+Syncs the vault to a local directory, skipping files that haven't changed. Faster than `dump` for repeated runs.
+
+```bash
+obsidian-vault sync                          # sync to ./vault-dump
+obsidian-vault sync ./my-vault               # sync to a specific directory
+obsidian-vault sync ./my-vault --delete      # also remove local files not in vault
+obsidian-vault sync ./my-vault --dry-run     # preview changes without applying
+obsidian-vault sync ./my-vault --parallel 16 # tune concurrency (default: 8)
+```
+
+**How it works:**
+- Compares local file mtime against vault mtime — skips files that are already up-to-date
+- Downloads new and changed files in parallel (configurable concurrency)
+- Sets local mtime to vault mtime after each download so subsequent runs skip correctly
+- `--delete` removes local files not present in the vault and prunes empty directories
+
+**Typical performance (1868-file vault):**
+| Run | Result |
+|-----|--------|
+| First run | All files downloaded |
+| Subsequent run (no changes) | All skipped, completes in ~2.5s |
 
 ## Agent integration
 
@@ -219,6 +255,9 @@ obsidian-vault write "Projects/MyApp/meeting-notes.md" "$(cat <<'EOF'
 - ...
 EOF
 )"
+
+# Sync vault to local directory for offline access
+obsidian-vault sync ./local-vault --delete
 ```
 
 ## How it works
@@ -228,12 +267,24 @@ The CLI uses Obsidian LiveSync's own [livesync-commonlib](https://github.com/vrt
 ### Architecture
 
 ```
-obsidian-vault CLI
+obsidian-vault CLI (Bun runtime)
   └── DirectFileManipulator (livesync-commonlib)
         ├── PouchDB → CouchDB (direct HTTP, no local replica)
         ├── AES-256-GCM encryption (HKDF v2, transparent via transform-pouch)
         └── Rabin-Karp content chunking (content-addressed, deduplicated)
 ```
+
+### Runtime: Bun
+
+This fork replaces the original Node.js + tsx stack with [Bun](https://bun.sh):
+
+- Bun runs TypeScript natively — no transpilation step, no `tsx` wrapper
+- Path aliases (`@lib/`, `@/lib/src/`, etc.) are resolved via `bun-plugin.ts` (a preload plugin) and `tsconfig.json` paths
+- Startup time: ~0.4s vs ~2.1s with the original Node.js + tsx + `NODE_ENV=development` stack
+
+### Parallel CouchDB enumeration
+
+The vault index spans five disjoint key ranges in CouchDB. This fork fetches all five ranges concurrently with `Promise.all`, roughly halving list latency compared to serial enumeration.
 
 ### Settings auto-detection
 
@@ -265,13 +316,14 @@ All commands support `--verbose` (`-v`) for detailed internal logging.
 obsidian-vault-cli/
 ├── livesync-commonlib/     # git submodule — Obsidian LiveSync's core library
 ├── src/
-│   ├── commands/           # CLI commands (list, read, write, patch, grep, ...)
+│   ├── commands/           # CLI commands (list, read, write, patch, grep, sync, ...)
 │   ├── lib/
-│   │   └── connection.ts   # DFM factory, vault settings auto-detection
+│   │   └── connection.ts   # DFM factory, vault settings auto-detection, listFiles
 │   └── index.ts            # oclif entry point
-├── stubs/                  # Node.js stubs for Obsidian/Svelte APIs
+├── stubs/                  # Stubs for Obsidian/Svelte APIs (headless shims)
 ├── bin/
-│   └── obsidian-vault      # Shell wrapper
+│   └── obsidian-vault      # Shell wrapper (invokes bun with preload plugin)
+├── bun-plugin.ts           # Bun preload plugin for path alias resolution
 ├── couchdb/
 │   ├── docker-compose.yml  # CouchDB container
 │   └── docker.ini          # CouchDB config (CORS, auth, limits)
@@ -293,6 +345,14 @@ curl -s http://127.0.0.1:5984/
 docker compose -f couchdb/docker-compose.yml ps
 ```
 
+### `COUCHDB_URL` not set
+
+The `.env.example` ships with `COUCHDB_URL` commented out (defaulting to `http://127.0.0.1:5984`). If your CouchDB is remote, uncomment and set it:
+
+```dotenv
+COUCHDB_URL=https://your-couchdb-host/
+```
+
 ### "No tweak_values found in milestone doc"
 
 The vault hasn't been synced yet. Open Obsidian with the LiveSync plugin, sync at least once, then try again.
@@ -305,10 +365,17 @@ This is a known PouchDB behavior — some internal timer keeps the event loop al
 
 If you see this in Obsidian after a write, it usually means the `size` field didn't match the actual UTF-8 byte length. The CLI handles this correctly, but if you're using the library directly, always use `new TextEncoder().encode(content).byteLength`.
 
+### Bun not found
+
+Install Bun: `curl -fsSL https://bun.sh/install | bash`
+
+Or via a package manager on NixOS / nix-darwin — Bun is available in nixpkgs.
+
 ## Credits
 
 - [Obsidian LiveSync](https://github.com/vrtmrz/obsidian-livesync) by [@vrtmrz](https://github.com/vrtmrz) — the Obsidian plugin and protocol
 - [livesync-commonlib](https://github.com/vrtmrz/livesync-commonlib) — the shared library this CLI builds on
+- [fanselau/obsidian-vault-cli](https://github.com/fanselau/obsidian-vault-cli) — the original project this fork is based on
 
 ## License
 

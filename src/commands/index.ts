@@ -10,6 +10,7 @@ import Meta from "./meta.ts";
 import Write from "./write.ts";
 import Delete from "./delete.ts";
 import Dump from "./dump.ts";
+import Sync from "./sync.ts";
 import Patch from "./patch.ts";
 import Grep from "./grep.ts";
 
@@ -21,6 +22,7 @@ const commands = {
     write: Write,
     delete: Delete,
     dump: Dump,
+    sync: Sync,
     patch: Patch,
     grep: Grep,
 };
