@@ -19,26 +19,6 @@ Obsidian LiveSync encrypts everything in CouchDB. There's no way to read or writ
 - CI/CD pipelines that publish content to your vault
 - Any headless environment where you can't run Obsidian
 
-## Raspberry Pi 4B
-
-Pi 4B (ARM64) is a supported target. The recommended setup uses a precompiled self-contained binary — no Bun or Node.js required on the Pi itself.
-
-**On your x86 machine:**
-```bash
-bash build-release.sh
-scp dist/obsidian-vault-arm64 pi@<host>:~/.local/bin/obsidian-vault
-ssh pi@<host> chmod +x ~/.local/bin/obsidian-vault
-```
-
-Then on the Pi, copy `.env` and run normally:
-```bash
-obsidian-vault list
-```
-
-**Memory footprint on Pi 4B:** ~97MB steady state, 136MB peak during `list`. Fits comfortably on 1GB/2GB/4GB/8GB models.
-
-> Pi 3 and older (ARM32 / armhf) are **not supported** — Bun has no ARM32 build.
-
 ## Quick start
 
 ### Prerequisites
