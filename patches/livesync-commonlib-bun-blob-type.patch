@@ -1,0 +1,31 @@
+From 8afe11246fb2f05f4d182ddf0638a191303b1dae Mon Sep 17 00:00:00 2001
+From: Bido Nakamura <K-REBO@users.noreply.github.com>
+Date: Thu, 14 May 2026 18:12:21 +0900
+Subject: [PATCH] fix: accept Bun's charset-suffixed text/plain MIME type in
+ isTextBlob
+
+Bun normalizes Blob MIME types to include charset (e.g. "text/plain; charset=utf-8"),
+causing isTextBlob to return false and text content to be stored as base64 binary chunks
+instead of plain text. Accept any "text/plain" prefix to fix this.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+---
+ src/common/utils.ts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/common/utils.ts b/src/common/utils.ts
+index 8049023..3f2631a 100644
+--- a/src/common/utils.ts
++++ b/src/common/utils.ts
+@@ -89,7 +89,7 @@ export function getDocDataAsArrayBuffer(doc: string | string[] | ArrayBuffer) {
+ }
+ 
+ export function isTextBlob(blob: Blob) {
+-    return blob.type === "text/plain";
++    return blob.type === "text/plain" || blob.type.startsWith("text/plain;");
+ }
+ export function createTextBlob(data: string | string[]) {
+     const d = Array.isArray(data) ? data : [data];
+-- 
+2.53.0
+

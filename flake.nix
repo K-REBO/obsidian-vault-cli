@@ -48,6 +48,11 @@
             cp -r ${livesync-commonlib} livesync-commonlib
             chmod -R u+w livesync-commonlib
 
+            # Apply local patches to the submodule
+            for p in ${./patches}/*.patch; do
+              patch -d livesync-commonlib -p1 < "$p"
+            done
+
             # Svelte stub — Bun cannot intercept bare package specifiers via plugins,
             # so we provide a shim directly in node_modules.
             mkdir -p node_modules/svelte
