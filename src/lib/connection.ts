@@ -249,7 +249,7 @@ export async function listFiles(dfm: DirectFileManipulator): Promise<VaultEntry[
     async function collectRange(start: string, end: string): Promise<VaultEntry[]> {
         const entries: VaultEntry[] = [];
         for await (const entry of dfm.liveSyncLocalDB.findEntries(start, end, {})) {
-            if (entry && "path" in entry) {
+            if (entry && "path" in entry && !(entry as any)._deleted && !(entry as any).deleted) {
                 entries.push({
                     path: (entry as any).path as string,
                     id: (entry as any)._id as string,

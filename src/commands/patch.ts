@@ -13,6 +13,7 @@
 
 import { Command, Args, Flags } from "@oclif/core";
 import { createDFM, listFiles } from "../lib/connection.ts";
+import { docContentAsString } from "../lib/utils.ts";
 
 async function readStdin(): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -27,7 +28,7 @@ async function readFile(dfm: any, filePath: string): Promise<string | null> {
     // Try direct path first
     const doc = await dfm.get(filePath);
     if (doc && "data" in doc) {
-        return (doc as any).data.join("");
+        return docContentAsString(doc as any);
     }
 
     // Fall back to case-insensitive listing match
@@ -40,7 +41,7 @@ async function readFile(dfm: any, filePath: string): Promise<string | null> {
 
     const docById = await dfm.getById(match.id);
     if (!docById || !("data" in docById)) return null;
-    return (docById as any).data.join("");
+    return docContentAsString(docById as any);
 }
 
 async function writeFile(dfm: any, filePath: string, content: string): Promise<boolean> {

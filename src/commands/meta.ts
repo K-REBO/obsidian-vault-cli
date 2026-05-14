@@ -6,6 +6,7 @@
 
 import { Command, Args, Flags } from "@oclif/core";
 import { createDFM, listFiles } from "../lib/connection.ts";
+import { docContentAsString } from "../lib/utils.ts";
 
 export default class Meta extends Command {
     static description = "Show metadata for a vault file as JSON";
@@ -67,7 +68,7 @@ export default class Meta extends Command {
                 if (d.children) metadata.chunk_count = d.children.length;
                 if (d.type) metadata.type = d.type;
                 if ("data" in d) {
-                    const content = d.data.join("");
+                    const content = docContentAsString(d);
                     metadata.content_length = content.length;
                     metadata.content_bytes = new TextEncoder().encode(content).byteLength;
                 }

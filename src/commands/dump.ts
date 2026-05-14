@@ -6,6 +6,7 @@
 
 import { Command, Args, Flags } from "@oclif/core";
 import { createDFM, listFiles } from "../lib/connection.ts";
+import { docContent } from "../lib/utils.ts";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -71,11 +72,11 @@ export default class Dump extends Command {
                     if (!doc || !("data" in doc)) {
                         throw new Error("No data in document");
                     }
-                    const content = (doc as any).data.join("");
+                    const content = docContent(doc as any);
 
                     // Create directory and write file
                     fs.mkdirSync(outDir, { recursive: true });
-                    fs.writeFileSync(outPath, content, "utf-8");
+                    fs.writeFileSync(outPath, content);
 
                     if (!flags.quiet) {
                         this.log(`  OK  ${file.path}`);

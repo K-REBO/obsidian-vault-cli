@@ -6,16 +6,7 @@
 
 import { Command, Args, Flags } from "@oclif/core";
 import { createDFM, listFiles } from "../lib/connection.ts";
-import { decodeBinary } from "../../livesync-commonlib/src/string_and_binary/convert.ts";
-
-function docContent(doc: { type?: string; datatype?: string; data: string[] }): string | Uint8Array {
-    const isPlain = doc.type === "plain" || doc.datatype === "plain";
-    if (isPlain) {
-        return doc.data.join("");
-    }
-    // newnote: chunks are base64-encoded binary → decode to original bytes
-    return new Uint8Array(decodeBinary(doc.data) as ArrayBuffer);
-}
+import { docContent } from "../lib/utils.ts";
 
 export default class Read extends Command {
     static description = "Print decrypted content of a vault file to stdout";

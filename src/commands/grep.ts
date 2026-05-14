@@ -11,6 +11,7 @@
 
 import { Command, Args, Flags } from "@oclif/core";
 import { createDFM, listFiles } from "../lib/connection.ts";
+import { docContentAsString } from "../lib/utils.ts";
 
 export default class Grep extends Command {
     static description = "Search file contents by regex within a vault folder (decrypts on the fly)";
@@ -88,7 +89,7 @@ export default class Grep extends Command {
                     const doc = await dfm.getById(file.id);
                     if (!doc || !("data" in doc)) continue;
 
-                    const content = (doc as any).data.join("");
+                    const content = docContentAsString(doc as any);
                     regex.lastIndex = 0;
 
                     if (regex.test(content)) {
