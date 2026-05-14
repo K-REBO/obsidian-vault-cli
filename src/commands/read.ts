@@ -6,6 +6,16 @@
 
 import { Command, Args, Flags } from "@oclif/core";
 import { createDFM, listFiles } from "../lib/connection.ts";
+import { decodeBinary } from "../../livesync-commonlib/src/string_and_binary/convert.ts";
+
+function docContent(doc: { type?: string; datatype?: string; data: string[] }): string | Uint8Array {
+    const isPlain = doc.type === "plain" || doc.datatype === "plain";
+    if (isPlain) {
+        return doc.data.join("");
+    }
+    // newnote: chunks are base64-encoded binary → decode to original bytes
+    return new Uint8Array(decodeBinary(doc.data) as ArrayBuffer);
+}
 
 export default class Read extends Command {
     static description = "Print decrypted content of a vault file to stdout";
@@ -45,8 +55,7 @@ export default class Read extends Command {
                 if (!doc || !("data" in doc)) {
                     this.error(`Document not found: ${args.path}`);
                 }
-                const content = (doc as any).data.join("");
-                process.stdout.write(content);
+                process.stdout.write(docContent(doc as any));
             } else {
                 // Read by path
                 const doc = await dfm.get(args.path as any);
@@ -64,12 +73,10 @@ export default class Read extends Command {
                     if (!docById || !("data" in docById)) {
                         this.error(`Could not read file: ${args.path}`);
                     }
-                    const content = (docById as any).data.join("");
-                    process.stdout.write(content);
+                    process.stdout.write(docContent(docById as any));
                     return;
                 }
-                const content = (doc as any).data.join("");
-                process.stdout.write(content);
+                process.stdout.write(docContent(doc as any));
             }
         } finally {
             await dfm.close();
